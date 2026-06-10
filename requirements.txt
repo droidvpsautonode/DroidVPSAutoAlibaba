@@ -1,0 +1,6 @@
+python-telegram-bot>=21.0
+python-dotenv>=1.0.0
+alibabacloud-ecs20140526>=5.0.0
+alibabacloud-tea-openapi>=0.3.0
+alibabacloud-tea-util>=0.3.0
+cryptography>=41.0.0
