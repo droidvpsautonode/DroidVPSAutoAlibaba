@@ -43,6 +43,21 @@ def _get_ecs_service(context) -> tuple:
     return ecs, account["account_name"]
 
 
+def _format_scan_errors(errors: list[str], limit: int = 8) -> str:
+    """Format scan errors into a short readable block."""
+    if not errors:
+        return ""
+    shown = errors[:limit]
+    text = ""
+    for err in shown:
+        # Keep each line short
+        line = err if len(err) <= 90 else err[:90] + "..."
+        text += f"• {line}\n"
+    if len(errors) > limit:
+        text += f"• ...dan {len(errors) - limit} region lain.\n"
+    return text
+
+
 # ==================== SCAN REGIONS ====================
 
 @owner_only
@@ -68,7 +83,7 @@ async def cb_regions_scan(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     try:
-        active_regions = await ecs.scan_regions_with_instances()
+        active_regions, scan_errors = await ecs.scan_regions_detailed()
 
         # Cache to database
         db.set_region_cache(account_id, active_regions)
@@ -80,10 +95,18 @@ async def cb_regions_scan(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         if not active_regions:
-            await query.edit_message_text(
+            text = (
                 f"<b>🌏 Region Scan - {account_name}</b>\n\n"
                 "Tidak ditemukan instance ECS di region manapun.\n"
-                "Pastikan akun memiliki instance aktif.",
+                "Pastikan akun memiliki instance aktif.\n"
+            )
+            if scan_errors:
+                text += (
+                    "\n⚠️ <b>Beberapa region gagal dicek:</b>\n"
+                    + _format_scan_errors(scan_errors)
+                )
+            await query.edit_message_text(
+                text,
                 reply_markup=main_menu_keyboard(),
                 parse_mode="HTML"
             )
@@ -138,7 +161,7 @@ async def cmd_scan(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     try:
-        active_regions = await ecs.scan_regions_with_instances()
+        active_regions, scan_errors = await ecs.scan_regions_detailed()
 
         # Cache to database
         db.set_region_cache(account_id, active_regions)
@@ -150,9 +173,17 @@ async def cmd_scan(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         if not active_regions:
-            await loading_msg.edit_text(
+            text = (
                 f"<b>🌏 Region Scan - {account_name}</b>\n\n"
-                "Tidak ditemukan instance ECS di region manapun.",
+                "Tidak ditemukan instance ECS di region manapun.\n"
+            )
+            if scan_errors:
+                text += (
+                    "\n⚠️ <b>Beberapa region gagal dicek:</b>\n"
+                    + _format_scan_errors(scan_errors)
+                )
+            await loading_msg.edit_text(
+                text,
                 reply_markup=main_menu_keyboard(),
                 parse_mode="HTML"
             )
