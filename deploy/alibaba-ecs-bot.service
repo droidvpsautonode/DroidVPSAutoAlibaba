@@ -1,0 +1,20 @@
+[Unit]
+Description=Alibaba Cloud ECS Telegram Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Ganti User jika tidak pakai root
+User=root
+# Ganti path jika repo Anda bukan di /root/DroidVPSAutoAlibaba
+WorkingDirectory=/root/DroidVPSAutoAlibaba
+ExecStart=/usr/bin/python3 -m app.main
+Restart=always
+RestartSec=5
+# Pastikan output masuk ke journald
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
