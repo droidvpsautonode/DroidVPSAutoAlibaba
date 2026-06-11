@@ -75,31 +75,58 @@ class ECSService:
         Scan all regions and return only those with ECS instances.
         Returns list of {"region_id", "region_name", "instance_count"}
         """
+        active_regions, _ = await self.scan_regions_detailed()
+        return active_regions
+
+    async def scan_regions_detailed(self) -> tuple[list[dict], list[str]]:
+        """
+        Scan all regions for ECS instances.
+        Returns (active_regions, errors).
+        - active_regions: list of {"region_id", "region_name", "instance_count"}
+        - errors: list of human-readable error strings per region that failed.
+
+        Uses limited concurrency (batch) to avoid Alibaba Cloud throttling,
+        and does NOT silently swallow errors.
+        """
         regions = await self.describe_regions()
-        active_regions = []
+        active_regions: list[dict] = []
+        errors: list[str] = []
 
         async def check_region(region: dict):
+            region_id = region["region_id"]
+            region_name = region["region_name"]
             try:
-                count = await self.count_instances(region["region_id"])
+                count = await self.count_instances(region_id)
                 if count > 0:
-                    return {
-                        "region_id": region["region_id"],
-                        "region_name": region["region_name"],
+                    return ("ok", {
+                        "region_id": region_id,
+                        "region_name": region_name,
                         "instance_count": count,
-                    }
-            except Exception:
-                pass
-            return None
+                    })
+                return ("empty", None)
+            except Exception as e:
+                msg = self._parse_error(e)
+                return ("error", f"{region_name} ({region_id}): {msg}")
 
-        # Check all regions concurrently
-        tasks = [check_region(r) for r in regions]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        # Process in batches of 5 to avoid throttling (Throttling errors)
+        batch_size = 5
+        for i in range(0, len(regions), batch_size):
+            batch = regions[i:i + batch_size]
+            results = await asyncio.gather(
+                *[check_region(r) for r in batch],
+                return_exceptions=True
+            )
+            for result in results:
+                if isinstance(result, Exception):
+                    errors.append(str(result))
+                    continue
+                status, payload = result
+                if status == "ok" and payload:
+                    active_regions.append(payload)
+                elif status == "error" and payload:
+                    errors.append(payload)
 
-        for result in results:
-            if result and not isinstance(result, Exception):
-                active_regions.append(result)
-
-        return active_regions
+        return active_regions, errors
 
     async def count_instances(self, region_id: str) -> int:
         """Count instances in a region."""
