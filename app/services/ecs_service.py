@@ -465,11 +465,13 @@ class ECSService:
         """Parse Alibaba Cloud API error into readable message."""
         error_str = str(exception)
 
-        # Common error translations
+        # Common error translations (urutan penting: yang lebih spesifik dulu)
         error_map = {
             "InvalidAccessKeyId": "AccessKey ID tidak valid.",
             "SignatureDoesNotMatch": "AccessKey Secret tidak cocok.",
-            "Forbidden": "Akses ditolak. Periksa permission RAM user.",
+            "Forbidden.RAM": "RAM user tidak punya izin ECS. Tambahkan policy AliyunECSFullAccess.",
+            "NoPermission": "RAM user tidak punya izin ECS. Tambahkan policy AliyunECSFullAccess.",
+            "Forbidden": "Akses ditolak. Tambahkan policy AliyunECSFullAccess ke RAM user.",
             "InvalidInstanceId.NotFound": "Instance tidak ditemukan.",
             "IncorrectInstanceStatus": "Status instance tidak sesuai untuk aksi ini.",
             "InvalidSecurityGroupId.NotFound": "Security group tidak ditemukan.",

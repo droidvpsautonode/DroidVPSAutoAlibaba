@@ -120,7 +120,14 @@ def main():
             else:
                 print(f"  ...... {region_name} ({region_id}): 0")
         except Exception as e:
-            print(f"[ERROR] {region_name} ({region_id}): {type(e).__name__}: {e}")
+            # Tampilkan kode error mentah Alibaba supaya jelas penyebabnya
+            code = getattr(e, "code", None)
+            data = getattr(e, "data", None)
+            extra = f" [code={code}]" if code else ""
+            if isinstance(data, dict) and data.get("Recommend"):
+                extra += f" (lihat: {data.get('Recommend')})"
+            print(f"[ERROR] {region_name} ({region_id}): "
+                  f"{type(e).__name__}: {e}{extra}")
 
     print("\n=== HASIL ===")
     if found_any:
